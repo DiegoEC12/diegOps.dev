@@ -22,6 +22,8 @@ export type Database = {
           featured: boolean
           github_url: string | null
           id: string
+          image_fit: string
+          image_position: string
           image_url: string | null
           problem: string
           published: boolean
@@ -39,6 +41,8 @@ export type Database = {
           featured?: boolean
           github_url?: string | null
           id?: string
+          image_fit?: string
+          image_position?: string
           image_url?: string | null
           problem: string
           published?: boolean
@@ -56,6 +60,8 @@ export type Database = {
           featured?: boolean
           github_url?: string | null
           id?: string
+          image_fit?: string
+          image_position?: string
           image_url?: string | null
           problem?: string
           published?: boolean
@@ -65,6 +71,243 @@ export type Database = {
           technologies?: string[]
           title?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      site_settings: {
+        Row: {
+          id: string
+          brand_initials: string
+          brand_name: string
+          hero_title: string
+          hero_role: string
+          hero_copy: string
+          availability_status: string
+          email_contact: string | null
+          github_url: string | null
+          linkedin_url: string | null
+          location: string | null
+          logo_url: string | null
+          logo_fit: string
+          logo_position: string
+          footer_tagline: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          brand_initials?: string
+          brand_name?: string
+          hero_title?: string
+          hero_role?: string
+          hero_copy?: string
+          availability_status?: string
+          email_contact?: string | null
+          github_url?: string | null
+          linkedin_url?: string | null
+          location?: string | null
+          logo_url?: string | null
+          logo_fit?: string
+          logo_position?: string
+          footer_tagline?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          brand_initials?: string
+          brand_name?: string
+          hero_title?: string
+          hero_role?: string
+          hero_copy?: string
+          availability_status?: string
+          email_contact?: string | null
+          github_url?: string | null
+          linkedin_url?: string | null
+          location?: string | null
+          logo_url?: string | null
+          logo_fit?: string
+          logo_position?: string
+          footer_tagline?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      timeline_entries: {
+        Row: {
+          id: string
+          kind: "education" | "experience"
+          title: string
+          institution: string
+          period: string
+          status: string
+          description: string
+          skills_learned: string[]
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          kind: "education" | "experience"
+          title: string
+          institution: string
+          period: string
+          status?: string
+          description: string
+          skills_learned?: string[]
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          kind?: "education" | "experience"
+          title?: string
+          institution?: string
+          period?: string
+          status?: string
+          description?: string
+          skills_learned?: string[]
+          sort_order?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      certifications: {
+        Row: {
+          id: string
+          title: string
+          issuer: string
+          issued_date: string
+          credential_url: string | null
+          credential_id: string | null
+          hours: number | null
+          badge_url: string | null
+          image_fit: string
+          image_position: string
+          sort_order: number
+          published: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          issuer: string
+          issued_date: string
+          credential_url?: string | null
+          credential_id?: string | null
+          hours?: number | null
+          badge_url?: string | null
+          image_fit?: string
+          image_position?: string
+          sort_order?: number
+          published?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          issuer?: string
+          issued_date?: string
+          credential_url?: string | null
+          credential_id?: string | null
+          hours?: number | null
+          badge_url?: string | null
+          image_fit?: string
+          image_position?: string
+          sort_order?: number
+          published?: boolean
+          created_at?: string
+        }
+        Relationships: []
+      }
+      music_tracks: {
+        Row: {
+          id: string
+          title: string
+          artist: string
+          audio_url: string
+          duration: string | null
+          is_active: boolean
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          artist?: string
+          audio_url: string
+          duration?: string | null
+          is_active?: boolean
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          artist?: string
+          audio_url?: string
+          duration?: string | null
+          is_active?: boolean
+          sort_order?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      faq_queries: {
+        Row: {
+          id: string
+          question_label: string
+          sql_command: string
+          result_columns: string[]
+          result_rows: Json
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          question_label: string
+          sql_command: string
+          result_columns?: string[]
+          result_rows?: Json
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          question_label?: string
+          sql_command?: string
+          result_columns?: string[]
+          result_rows?: Json
+          sort_order?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      contact_messages: {
+        Row: {
+          id: string
+          sender_name: string
+          sender_email: string
+          subject: string | null
+          message: string
+          is_read: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          sender_name: string
+          sender_email: string
+          subject?: string | null
+          message: string
+          is_read?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          sender_name?: string
+          sender_email?: string
+          subject?: string | null
+          message?: string
+          is_read?: boolean
+          created_at?: string
         }
         Relationships: []
       }

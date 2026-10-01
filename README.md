@@ -1,29 +1,59 @@
-# Code Canvas
+# Portfolio Diego Yeferson EC
 
-Crear la web de portfolio personal profesional para Diego Yeferson EC, técnico en desarrollo de sistemas e información y estudiante de ingeniería de software en la UTP (1er ciclo).
+Portfolio personal profesional con enfoque visual manga lo-fi, estilo técnico y administrativo, orientado a mostrar proyectos, experiencia, credenciales y un panel privado para gestionar contenido.
 
-Dominio de tecnologías y stack: HTML, CSS, JavaScript, TypeScript, PHP, MySQL, PostgreSQL, SQL Server, Docker, Git y GitHub.
+## Estado actual del proyecto
 
-Especificaciones de diseño y módulos:
-1. Estilo visual Manga / Lo-Fi Chill:
-   - Estética de dibujo a lápiz/carboncillo con líneas de tinta, texturas sutiles de papel y tramas mecánicas manga (screentones/halftones).
-   - Uso de iconos vectoriales e ingeniería visual limpia. Solo usar enlaces externos para imágenes secundarias/proyectos para ahorrar recursos.
-2. Hero Principal Animado (según la imagen adjunta de referencia):
-   - Escena con el joven programador con audífonos codificando en su laptop, taza de café con vapor humeante y lluvia cayendo por la ventana de fondo con luces nocturnas.
-   - Microanimaciones fluidas (lluvia, vapor del café, parpadeo sutil de código en pantalla).
-   - Presentación técnica destacada y botones de acción: Explorar Proyectos, Descargar CV y Contacto.
-3. Reproductor Lo-Fi Flotante:
-   - Mini-widget de audio ambiental lofi estilo cassette/dock con barras de ecualizador animadas, botón play/pause y volumen (silenciado por defecto al iniciar).
-4. Catálogo de Proyectos:
-   - Tarjetas diseñadas como viñetas de manga técnico con título, problema resuelto, arquitectura/stack en badges y enlaces a GitHub y demo.
-   - Filtros por categoría/tecnología.
-5. Panel Privado de Administración (/admin):
-   - Módulo administrativo conectado a base de datos de Lovable Cloud para crear, editar, organizar y publicar proyectos sin tocar código.
-6. Blueprint de Habilidades & Stack:
-   - Matriz clasificada en capas: Backend & Lenguajes (PHP, TypeScript), Bases de Datos (PostgreSQL, MySQL, SQL Server), Frontend (HTML, CSS, JS, TS) y DevOps/Herramientas (Docker, Git, GitHub).
-7. Contacto Interactivo tipo Terminal CLI:
-   - Consola funcional (diego@portfolio:~$) con comandos como contact --send, whoami, skills, projects y clear.
-   - Accesos directos rápidos para copiar correo y enlaces a LinkedIn y GitHub.
+Este repositorio ya avanzó en la base de datos y la estructura del proyecto siguiendo el plan técnico. El punto principal completado es la organización de la capa de datos en migraciones enumeradas, para que el esquema se ejecute en orden y quede listo para la siguiente fase de UI y admin.
+
+### Checklist de progreso
+- [x] Diagnóstico del proyecto y del stack actual.
+- [x] Ordenación de migraciones SQL para la base de datos.
+- [x] Migración 0003: schema principal del portfolio.
+- [x] Migración 0004: permisos, RLS y seguridad de admin.
+- [x] Migración 0005: seed inicial de contenido.
+- [x] Sincronización del esquema en drizzle/schema.ts.
+- [x] Conexión de la vista pública a Supabase con contenido real.
+- [x] Panel /admin con pestañas para proyectos y contenido general.
+- [x] Guardado de configuración general del sitio desde la base de datos.
+- [ ] Componente de encuadre por arrastre (ImageDragFramer).
+- [ ] Secciones de timeline, certificados, FAQ, contacto y footer.
+- [ ] Reproductor lo-fi conectado a la base de datos.
+
+## Orden de migraciones
+
+La base de datos queda preparada con el siguiente orden de ejecución:
+
+1. 0003_portfolio_manga_lofi_schema.sql — crea el esquema base del portfolio: ajustes de proyecto, configuración del sitio, timeline, certificaciones, música, FAQ y mensajes de contacto.
+2. 0004_portfolio_manga_lofi_security.sql — habilita RLS, define permisos y políticas para lectura pública y gestión de admin, además de disparadores de timestamp.
+3. 0005_portfolio_manga_lofi_seed.sql — inserta contenido inicial real del portfolio (proyectos publicados, configuración general y datos base del sitio).
+
+### Qué hace cada migración
+
+- 0003: prepara la estructura de datos del portfolio y sus módulos principales. Aquí se define casi todo el esquema de negocio del sitio.
+- 0004: deja la capa segura para que la web pueda leer públicamente lo necesario y el panel admin gestione contenido con permisos restringidos.
+- 0005: siembra el contenido inicial para que la UI pública no quede vacía, cargando proyectos, ajustes del sitio y datos base.
+
+## Stack y enfoque
+
+- Frontend: React + TypeScript + Vite
+- Routing: TanStack Router
+- UI: Tailwind + shadcn/ui
+- Base de datos: PostgreSQL / Supabase
+- ORM/migraciones: Drizzle
+- Estética visual: Manga lo-fi / blueprint técnico / papel tinta grafito
+
+## Fase actual recomendada
+
+La implementación ya dejó conectada la base de datos con la vista pública y reforzó la administración principal. La siguiente fase del desarrollo debe centrarse en:
+
+1. el componente de encuadre por arrastre,
+2. la sección de timeline/certificados/FAQ,
+3. el contacto, footer y reproductor lo-fi.
+
+## Documentación del plan
+
+La referencia técnica completa del proyecto sigue en [plan-implementacion.md](plan-implementacion.md), y el registro incremental de progreso está en [AVANCES_IMPLEMENTACION.md](AVANCES_IMPLEMENTACION.md).
 
 This project was built with [Lovable](https://lovable.dev).
 

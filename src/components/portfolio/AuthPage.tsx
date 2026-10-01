@@ -3,7 +3,6 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Eye, EyeOff, Github, LockKeyhole } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 
 export function AuthPage() {
   const navigate = useNavigate();
@@ -26,9 +25,26 @@ export function AuthPage() {
   };
 
   const google = async () => {
-    const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
-    if (result.error) setMessage(result.error.message);
-    if (!result.redirected && !result.error) await navigate({ to: "/admin" });
+    setLoading(true);
+    setMessage("");
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/admin`,
+      },
+    });
+
+    setLoading(false);
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    if (data?.url) {
+      window.location.href = data.url;
+    }
   };
 
   return <main className="auth-page">
