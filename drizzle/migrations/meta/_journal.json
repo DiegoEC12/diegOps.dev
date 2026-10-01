@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1790873514105,
+      "tag": "0000_create_portfolio_projects",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790873538849,
+      "tag": "0001_secure_portfolio_admin_roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790873566746,
+      "tag": "0002_bootstrap_first_portfolio_admin",
+      "breakpoints": true
+    }
+  ]
+}

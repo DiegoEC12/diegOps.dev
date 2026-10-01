@@ -1,0 +1,14 @@
+DIEGO YEFERSON EC
+Técnico en Desarrollo de Sistemas e Información
+Estudiante de Ingeniería de Software — UTP (1er ciclo)
+
+PERFIL
+Desarrollador orientado a construir soluciones digitales útiles, mantenibles y bien documentadas.
+
+TECNOLOGÍAS
+HTML · CSS · JavaScript · TypeScript · PHP
+MySQL · PostgreSQL · SQL Server
+Docker · Git · GitHub
+
+PORTFOLIO
+Consulta la versión web para acceder a proyectos y canales de contacto actualizados.
