@@ -7,6 +7,8 @@ import {
   Briefcase,
   Check,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Disc3,
   ExternalLink,
   Eye,
@@ -17,6 +19,7 @@ import {
   Inbox,
   LayoutDashboard,
   Linkedin,
+  Menu,
   LogOut,
   Mail,
   MapPin,
@@ -33,8 +36,10 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { toast } from "sonner";
 import { ImageDragFramer } from "./ImageDragFramer";
 
 type Project = Database["public"]["Tables"]["projects"]["Row"];
@@ -47,9 +52,43 @@ type ContactMessage = Database["public"]["Tables"]["contact_messages"]["Row"];
 
 type AdminTab = "settings" | "projects" | "timeline" | "certifications" | "music" | "faq" | "messages";
 
+const parseYouTubeId = (value: string) => {
+  const input = value.trim();
+  if (/^[\w-]{11}$/.test(input)) return input;
+
+  try {
+    const url = new URL(input);
+    const host = url.hostname.replace(/^www\./, "").toLowerCase();
+    if (host === "youtu.be") return url.pathname.split("/").filter(Boolean)[0] || "";
+    if (["youtube.com", "m.youtube.com", "music.youtube.com"].includes(host)) {
+      const id = url.searchParams.get("v");
+      if (id) return id;
+      const parts = url.pathname.split("/").filter(Boolean);
+      if (["embed", "shorts", "live", "v"].includes(parts[0]) && parts[1]) return parts[1];
+    }
+  } catch {
+    return "";
+  }
+  return "";
+};
+
+const getDirectAudioPreviewUrl = (value: string) => {
+  const input = value.trim();
+  if (!input) return "";
+  try {
+    const url = new URL(input);
+    if (!["http:", "https:"].includes(url.protocol)) return "";
+    if (/(youtube\.com|youtu\.be)$/i.test(url.hostname)) return "";
+    return url.href;
+  } catch {
+    return "";
+  }
+};
+
+const isYouTubeUrl = (value: string) => Boolean(parseYouTubeId(value));
+
 const defaultSettings: SiteSettings = {
   id: "general_config",
-  brand_initials: "DY",
   brand_name: "Diego Yeferson EC",
   hero_title: "Diego Yeferson EC",
   hero_role: "Técnico en desarrollo de sistemas e información",
@@ -131,6 +170,7 @@ const emptyFaqForm = {
 export function AdminPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<AdminTab>("settings");
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
   const [globalMessage, setGlobalMessage] = useState("");
@@ -163,6 +203,8 @@ export function AdminPage() {
   const [musicUploadFile, setMusicUploadFile] = useState<File | null>(null);
   const [musicFileLabel, setMusicFileLabel] = useState("No hay archivo");
   const [musicFeedback, setMusicFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [musicUploadProgress, setMusicUploadProgress] = useState<number | null>(null);
+  const [isSavingMusic, setIsSavingMusic] = useState(false);
   const [editingMusicId, setEditingMusicId] = useState<string | null>(null);
 
   const [faqDrawerOpen, setFaqDrawerOpen] = useState(false);
@@ -265,6 +307,7 @@ export function AdminPage() {
 
     const payload = {
       ...siteSettings,
+      brand_initials: null,
       id: "general_config",
       updated_at: new Date().toISOString(),
     };
@@ -486,43 +529,77 @@ export function AdminPage() {
       return isBlobUrl(musicForm.audio_url) ? null : normalizeStoredAudioUrl(musicForm.audio_url) || null;
     }
 
-    const { data: bucketData, error: bucketError } = await supabase.storage.getBucket("music");
-    if (bucketError || !bucketData) {
-      throw new Error("El bucket 'music' no existe en este proyecto de Supabase. Créalo en Storage con acceso público.");
-    }
-
     const originalName = musicUploadFile.name.toLowerCase();
     const extension = originalName.includes(".") ? originalName.slice(originalName.lastIndexOf(".")) : ".mp3";
     const baseName = originalName.replace(/\.[^.]+$/, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
     const randomSuffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const safeFileName = `${baseName || "audio"}-${randomSuffix}`.replace(/-+/g, "-");
     const storagePath = `${safeFileName}${extension}`;
-
-    const { error } = await supabase.storage.from("music").upload(storagePath, musicUploadFile, {
-      cacheControl: "3600",
-      upsert: false,
-      contentType: musicUploadFile.type || "audio/mpeg",
-    });
-
-    if (error) {
-      throw new Error(`No se pudo subir el archivo a Supabase Storage: ${error.message}`);
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !sessionData.session?.access_token) {
+      throw new Error(sessionError?.message || "La sesión expiró. Vuelve a iniciar sesión y prueba de nuevo.");
     }
 
+    const storageUrl = import.meta.env["VITE_SUPABASE_URL"] || "";
+    const publishableKey = import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"] || "";
+    if (!storageUrl || !publishableKey) {
+      throw new Error("Falta la configuración pública de Supabase para subir el archivo.");
+    }
+
+    const encodedPath = storagePath.split("/").map(encodeURIComponent).join("/");
+    await new Promise<void>((resolve, reject) => {
+      const request = new XMLHttpRequest();
+      request.open("POST", `${storageUrl.replace(/\/$/, "")}/storage/v1/object/music/${encodedPath}`);
+      request.setRequestHeader("apikey", publishableKey);
+      request.setRequestHeader("Authorization", `Bearer ${sessionData.session.access_token}`);
+      request.setRequestHeader("cache-control", "3600");
+      request.setRequestHeader("x-upsert", "false");
+      request.setRequestHeader("content-type", musicUploadFile.type || "audio/mpeg");
+      request.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          setMusicUploadProgress(Math.round((event.loaded / event.total) * 100));
+        }
+      };
+      request.onload = () => {
+        if (request.status >= 200 && request.status < 300) {
+          resolve();
+          return;
+        }
+
+        let detail = request.responseText;
+        try {
+          const response = JSON.parse(request.responseText) as { message?: string; error?: string; statusCode?: string };
+          detail = response.message || response.error || response.statusCode || detail;
+        } catch {
+        }
+        reject(new Error(`Supabase Storage respondió ${request.status}${detail ? `: ${detail}` : "."}`));
+      };
+      request.onerror = () => reject(new Error("No se pudo conectar con Supabase Storage. Revisa tu conexión."));
+      request.ontimeout = () => reject(new Error("La subida tardó demasiado y se agotó el tiempo de espera."));
+      request.timeout = 120000;
+      request.send(musicUploadFile);
+    });
+
+    setMusicUploadProgress(null);
     const { data } = supabase.storage.from("music").getPublicUrl(storagePath);
+    toast.success("Archivo de audio subido a Supabase Storage.");
     return normalizeStoredAudioUrl(data.publicUrl) || data.publicUrl;
   };
 
   const startEditMusic = (item?: MusicTrack) => {
     setMusicFeedback(null);
     if (item) {
+      const itemSourceType = (item.source_type as "upload" | "direct_url" | "youtube") || "direct_url";
+      const itemAudioUrl = normalizeStoredAudioUrl(item.audio_url) || "";
+      const itemIsYouTube = itemSourceType === "youtube" || Boolean(item.youtube_id) || isYouTubeUrl(itemAudioUrl);
       setEditingMusicId(item.id);
       setMusicUploadFile(null);
       setMusicForm({
         title: item.title,
         artist: item.artist,
-        source_type: (item.source_type as "upload" | "direct_url" | "youtube") || "direct_url",
-        audio_url: normalizeStoredAudioUrl(item.audio_url) || "",
-        youtube_id: item.youtube_id || "",
+        source_type: itemIsYouTube ? "youtube" : itemSourceType,
+        audio_url: itemIsYouTube ? itemAudioUrl : itemAudioUrl,
+        youtube_id: item.youtube_id || (itemIsYouTube ? parseYouTubeId(itemAudioUrl) : ""),
         duration: item.duration || "2:45",
         duration_seconds: item.duration_seconds || 165,
         is_active: item.is_active,
@@ -542,15 +619,29 @@ export function AdminPage() {
     e.preventDefault();
 
     const safeStoredAudioUrl = isBlobUrl(musicForm.audio_url) ? "" : musicForm.audio_url || "";
-    const validExistingAudio = safeStoredAudioUrl || (editingMusicId ? (await supabase.from("music_tracks").select("audio_url").eq("id", editingMusicId).maybeSingle()).data?.audio_url || "" : "");
-
-    if (musicForm.source_type === "upload" && !musicUploadFile && !validExistingAudio) {
+    if (musicForm.source_type === "upload" && !musicUploadFile && !safeStoredAudioUrl && !editingMusicId) {
       setMusicFeedback({ type: "error", message: "Selecciona un archivo MP3/WAV antes de guardar la pista." });
+      toast.error("Selecciona un archivo antes de guardar la pista.");
       return;
     }
 
+    setIsSavingMusic(true);
+    setMusicUploadProgress(musicForm.source_type === "upload" && musicUploadFile ? 0 : null);
+    setMusicFeedback(null);
     try {
+      let validExistingAudio = safeStoredAudioUrl;
+      if (musicForm.source_type === "upload" && !musicUploadFile && editingMusicId && !validExistingAudio) {
+        const { data, error } = await supabase.from("music_tracks").select("audio_url").eq("id", editingMusicId).maybeSingle();
+        if (error) throw new Error(`No se pudo verificar el audio actual: ${error.message}`);
+        validExistingAudio = data?.audio_url || "";
+      }
+
+      if (musicForm.source_type === "upload" && !musicUploadFile && !validExistingAudio) {
+        throw new Error("Selecciona un archivo MP3/WAV antes de guardar la pista.");
+      }
+
       let resolvedAudioUrl = isBlobUrl(musicForm.audio_url) ? null : normalizeStoredAudioUrl(musicForm.audio_url) || null;
+      let resolvedYouTubeId: string | null = null;
 
       if (musicForm.source_type === "upload" && musicUploadFile) {
         resolvedAudioUrl = await uploadMusicFileToStorage();
@@ -559,20 +650,31 @@ export function AdminPage() {
       }
 
       if (musicForm.source_type === "upload" && !resolvedAudioUrl) {
-        setMusicFeedback({ type: "error", message: "No hay ninguna URL válida para esta pista de audio. Sube un archivo MP3/WAV o usa una URL pública." });
-        return;
+        throw new Error("No hay una URL válida para esta pista de audio. Sube un archivo o usa una URL pública.");
+      }
+
+      if (musicForm.source_type === "direct_url") {
+        resolvedAudioUrl = getDirectAudioPreviewUrl(musicForm.audio_url) || null;
+        if (!resolvedAudioUrl) throw new Error("Ingresa una URL pública http(s) válida para el audio.");
+      }
+
+      if (musicForm.source_type === "youtube") {
+        resolvedYouTubeId = parseYouTubeId(musicForm.youtube_id || musicForm.audio_url) || null;
+        if (!resolvedYouTubeId) throw new Error("Ingresa un enlace válido de YouTube o su ID de 11 caracteres.");
       }
 
       const payload = {
         title: musicForm.title,
         artist: musicForm.artist,
         source_type: musicForm.source_type,
-        audio_url: musicForm.source_type === "upload" ? resolvedAudioUrl : safeStoredAudioUrl || null,
-        youtube_id: musicForm.source_type === "youtube" ? (musicForm.youtube_id || safeStoredAudioUrl || null) : (musicForm.youtube_id || null),
+        audio_url: musicForm.source_type === "youtube" ? null : resolvedAudioUrl,
+        youtube_id: musicForm.source_type === "youtube" ? resolvedYouTubeId : null,
         duration: musicForm.duration || "2:45",
         duration_seconds: Number(musicForm.duration_seconds) || null,
         is_active: musicForm.is_active,
-        sort_order: Number(musicForm.sort_order),
+        sort_order: editingMusicId
+          ? (music.find((track) => track.id === editingMusicId)?.sort_order ?? Number(musicForm.sort_order))
+          : music.reduce((maxOrder, track) => Math.max(maxOrder, track.sort_order), 0) + 1,
       };
 
       const res = editingMusicId
@@ -580,10 +682,10 @@ export function AdminPage() {
         : await supabase.from("music_tracks").insert(payload);
 
       if (res.error) {
-        setMusicFeedback({ type: "error", message: `Error: ${res.error.message}` });
-        return;
+        throw new Error(`No se pudieron guardar los cambios: ${res.error.message}`);
       }
 
+      toast.success("Pista y cambios guardados correctamente.");
       setMusicDrawerOpen(false);
       setMusicUploadFile(null);
       setMusicFileLabel("No hay archivo");
@@ -591,7 +693,11 @@ export function AdminPage() {
       await loadMusic();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Error desconocido";
-      setMusicFeedback({ type: "error", message: `${message}. Crea el bucket 'music' en Supabase Storage y asegúrate de que sea público.` });
+      setMusicFeedback({ type: "error", message });
+      toast.error(message);
+    } finally {
+      setIsSavingMusic(false);
+      setMusicUploadProgress(null);
     }
   };
 
@@ -618,6 +724,74 @@ export function AdminPage() {
     await navigate({ to: "/auth" });
   };
 
+  const moveMusicTrack = async (track: MusicTrack, direction: -1 | 1) => {
+    const ordered = [...music].sort((a, b) => a.sort_order - b.sort_order);
+    const index = ordered.findIndex((item) => item.id === track.id);
+    const targetIndex = index + direction;
+    if (index < 0 || targetIndex < 0 || targetIndex >= ordered.length) return;
+
+    const reordered = [...ordered];
+    [reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]];
+    const updates = reordered.map((item, order) =>
+      supabase.from("music_tracks").update({ sort_order: order + 1 }).eq("id", item.id)
+    );
+    const results = await Promise.all(updates);
+    const failed = results.find((result) => result.error);
+    if (failed?.error) {
+      toast.error(`No se pudo cambiar el orden: ${failed.error.message}`);
+      return;
+    }
+    await loadMusic();
+  };
+
+  useEffect(() => {
+    if (!musicDrawerOpen || musicForm.source_type !== "youtube") return;
+    const videoId = parseYouTubeId(musicForm.youtube_id || musicForm.audio_url);
+    if (!videoId) return;
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => {
+      void fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}&format=json`, {
+        signal: controller.signal,
+      })
+        .then((response) => {
+          if (!response.ok) throw new Error("No se encontró información pública para este video.");
+          return response.json() as Promise<{ title?: string; author_name?: string }>;
+        })
+        .then((metadata) => {
+          setMusicForm((form) => ({
+            ...form,
+            title: metadata.title?.trim() || form.title,
+            artist: metadata.author_name?.trim() || form.artist,
+          }));
+        })
+        .catch((error: unknown) => {
+          if (error instanceof DOMException && error.name === "AbortError") return;
+          // Metadata is optional; the track can still be saved with manual title/artist.
+        });
+    }, 350);
+
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [musicDrawerOpen, musicForm.source_type, musicForm.youtube_id, musicForm.audio_url]);
+
+  const selectAdminTab = (tab: AdminTab) => {
+    setActiveTab(tab);
+    setIsMobileNavOpen(false);
+  };
+
+  const activeTabLabel: Record<AdminTab, string> = {
+    settings: "Contenido General",
+    projects: "Proyectos",
+    timeline: "Expediente",
+    certifications: "Certificaciones",
+    music: "Música Lo-Fi",
+    faq: "Consultas FAQ",
+    messages: "Mensajes",
+  };
+
   if (loading) return <main className="admin-loading">Cargando consola de administración…</main>;
   if (!authorized) {
     return (
@@ -632,73 +806,103 @@ export function AdminPage() {
     <main className="admin-page">
       {/* Sidebar Navigation */}
       <aside className="admin-sidebar">
-        <div className="wordmark">
-          <img src="/favicon.png" alt="Logo Diego Yeferson" className="wordmark-logo" width={34} height={34} />
-          <span>Panel Administrador</span>
+        <div className="admin-mobile-bar">
+          <div className="wordmark">
+            <img src="/favicon.png" alt="Logo Diego Yeferson" className="wordmark-logo" width={34} height={34} />
+            <span>Panel Administrador</span>
+          </div>
+          <span className="admin-mobile-current-section">{activeTabLabel[activeTab]}</span>
+          <Button
+            type="button"
+            variant="ghost"
+            className="admin-mobile-menu-toggle"
+            onClick={() => setIsMobileNavOpen((isOpen) => !isOpen)}
+            aria-label={isMobileNavOpen ? "Cerrar menú de navegación" : "Abrir menú de navegación"}
+            aria-expanded={isMobileNavOpen}
+            aria-controls="admin-navigation"
+          >
+            {isMobileNavOpen ? <X /> : <Menu />}
+          </Button>
         </div>
 
-        <nav>
+        <nav
+          id="admin-navigation"
+          className={isMobileNavOpen ? "is-open" : ""}
+          aria-hidden={!isMobileNavOpen}
+        >
           <button
             type="button"
             className={activeTab === "settings" ? "admin-tab-button active" : "admin-tab-button"}
-            onClick={() => setActiveTab("settings")}
+            onClick={() => selectAdminTab("settings")}
           >
             <Sliders /> Contenido General
           </button>
           <button
             type="button"
             className={activeTab === "projects" ? "admin-tab-button active" : "admin-tab-button"}
-            onClick={() => setActiveTab("projects")}
+            onClick={() => selectAdminTab("projects")}
           >
             <LayoutDashboard /> Proyectos ({projects.length})
           </button>
           <button
             type="button"
             className={activeTab === "timeline" ? "admin-tab-button active" : "admin-tab-button"}
-            onClick={() => setActiveTab("timeline")}
+            onClick={() => selectAdminTab("timeline")}
           >
             <GraduationCap /> Expediente ({timeline.length})
           </button>
           <button
             type="button"
             className={activeTab === "certifications" ? "admin-tab-button active" : "admin-tab-button"}
-            onClick={() => setActiveTab("certifications")}
+            onClick={() => selectAdminTab("certifications")}
           >
             <Award /> Certificaciones ({certifications.length})
           </button>
           <button
             type="button"
             className={activeTab === "music" ? "admin-tab-button active" : "admin-tab-button"}
-            onClick={() => setActiveTab("music")}
+            onClick={() => selectAdminTab("music")}
           >
             <Music /> Música Lo-Fi ({music.length})
           </button>
           <button
             type="button"
             className={activeTab === "faq" ? "admin-tab-button active" : "admin-tab-button"}
-            onClick={() => setActiveTab("faq")}
+            onClick={() => selectAdminTab("faq")}
           >
             <HelpCircle /> Consultas FAQ ({faqs.length})
           </button>
           <button
             type="button"
             className={activeTab === "messages" ? "admin-tab-button active" : "admin-tab-button"}
-            onClick={() => setActiveTab("messages")}
+            onClick={() => selectAdminTab("messages")}
           >
             <Inbox /> Mensajes ({messages.filter((m) => !m.is_read).length} nuevos)
           </button>
-          <Link to="/">
+          <Link to="/" onClick={() => setIsMobileNavOpen(false)}>
             <ArrowLeft /> Ver Portfolio
           </Link>
+          <Button variant="ghost" onClick={signOut} className="admin-sign-out-mobile">
+            <LogOut /> Cerrar sesión
+          </Button>
         </nav>
 
-        <Button variant="ghost" onClick={signOut} className="mt-auto">
+        <Button variant="ghost" onClick={signOut} className="mt-auto admin-sign-out admin-sign-out-desktop">
           <LogOut /> Cerrar sesión
         </Button>
       </aside>
 
+      <button
+        type="button"
+        className={`admin-navigation-backdrop ${isMobileNavOpen ? "is-open" : ""}`}
+        onClick={() => setIsMobileNavOpen(false)}
+        aria-label="Cerrar menú de navegación"
+        tabIndex={isMobileNavOpen ? 0 : -1}
+        aria-hidden={!isMobileNavOpen}
+      />
+
       {/* Main Content Area */}
-      <section className="admin-content">
+      <section className={`admin-content ${isMobileNavOpen ? "is-nav-open" : ""}`}>
         {/* ====================================================================
             TAB: CONTENIDO GENERAL (REDESIGNED & BEAUTIFIED)
             ==================================================================== */}
@@ -723,24 +927,10 @@ export function AdminPage() {
                     <span className="admin-card-badge">[SEC-01] IDENTIDAD VISUAL & LOGOTIPO</span>
                     <h2 className="admin-card-title">Marca & Encuadre de Logo</h2>
                     <p className="admin-card-desc">
-                      Define las siglas, el nombre visible en el encabezado y ajusta el encuadre exacto del isotipo.
+                      Define el nombre visible en el encabezado y ajusta el encuadre exacto del logotipo.
                     </p>
 
                     <div className="form-grid">
-                      <div className="admin-field-group">
-                        <label className="admin-field-label">
-                          Siglas de Marca <span className="admin-field-meta">(Máx. 3 letras)</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={siteSettings.brand_initials || "DY"}
-                          maxLength={4}
-                          onChange={(e) => setSiteSettings({ ...siteSettings, brand_initials: e.target.value })}
-                          className="admin-input-styled font-mono font-bold"
-                          placeholder="DY"
-                        />
-                      </div>
-
                       <div className="admin-field-group">
                         <label className="admin-field-label">Nombre de Marca / Autor</label>
                         <input
@@ -1037,9 +1227,15 @@ export function AdminPage() {
                           />
                           <span className="preview-brand-tag">{siteSettings.brand_name || "Diego Yeferson EC"}</span>
                         </div>
-                        <div className="preview-hanko-seal" title="Sello Hankō tradicional">
-                          {siteSettings.brand_initials || "DY"}
-                        </div>
+                        <img
+                          className="preview-brand-logo"
+                          src={siteSettings.logo_url || "/favicon.png"}
+                          alt="Logotipo de marca"
+                          style={{
+                            objectFit: (siteSettings.logo_fit as "cover" | "contain") || "contain",
+                            objectPosition: siteSettings.logo_position || "50% 50%",
+                          }}
+                        />
                       </div>
 
                       {/* Preview Hero Status */}
@@ -1367,7 +1563,7 @@ export function AdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {music.map((track) => (
+                  {[...music].sort((a, b) => a.sort_order - b.sort_order).map((track, index, orderedMusic) => (
                     <tr key={track.id}>
                       <td>
                         <strong>{track.title}</strong>
@@ -1382,6 +1578,26 @@ export function AdminPage() {
                       <td>{track.sort_order}</td>
                       <td>
                         <div className="row-actions">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => void moveMusicTrack(track, -1)}
+                            disabled={index === 0}
+                            aria-label={`Mover ${track.title} arriba en la cola`}
+                            title="Mover arriba"
+                          >
+                            <ChevronUp />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => void moveMusicTrack(track, 1)}
+                            disabled={index === orderedMusic.length - 1}
+                            aria-label={`Mover ${track.title} abajo en la cola`}
+                            title="Mover abajo"
+                          >
+                            <ChevronDown />
+                          </Button>
                           <Button
                             size="icon"
                             variant="ghost"
@@ -1936,14 +2152,14 @@ export function AdminPage() {
           DRAWER: MÚSICA LO-FI
           ==================================================================== */}
       {musicDrawerOpen && (
-        <div className="drawer-backdrop" onMouseDown={() => setMusicDrawerOpen(false)}>
+        <div className="drawer-backdrop" onMouseDown={() => !isSavingMusic && setMusicDrawerOpen(false)}>
           <aside className="project-drawer music-drawer" onMouseDown={(e) => e.stopPropagation()}>
             <header>
               <div>
                 <p className="kicker">{editingMusicId ? "Editar pista" : "Nueva pista"}</p>
                 <h2>{editingMusicId ? musicForm.title : "Registrar Pista Lo-Fi"}</h2>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => setMusicDrawerOpen(false)}>
+              <Button variant="ghost" size="icon" onClick={() => setMusicDrawerOpen(false)} disabled={isSavingMusic}>
                 <X />
               </Button>
             </header>
@@ -1981,8 +2197,8 @@ export function AdminPage() {
                         setMusicForm({
                           ...musicForm,
                           source_type: nextType,
-                          audio_url: nextType === "upload" ? cleanedAudioUrl : "",
-                          youtube_id: nextType === "youtube" ? musicForm.youtube_id : "",
+                          audio_url: nextType === "upload" ? cleanedAudioUrl : nextType === "direct_url" ? musicForm.audio_url : "",
+                          youtube_id: nextType === "youtube" ? musicForm.youtube_id || parseYouTubeId(musicForm.audio_url) : "",
                         });
                       }}
                       className="admin-input-styled"
@@ -1997,7 +2213,7 @@ export function AdminPage() {
                     <div className="music-upload-panel">
                       <label className="music-upload-label">
                         Archivo de audio
-                        <input type="file" accept="audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/aac" onChange={handleMusicFileSelection} />
+                        <input type="file" accept="audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/aac" onChange={handleMusicFileSelection} disabled={isSavingMusic} />
                       </label>
 
                       {musicForm.audio_url && (
@@ -2005,8 +2221,19 @@ export function AdminPage() {
                           <audio controls src={musicForm.audio_url} preload="metadata" />
                           <small>{musicFileLabel}</small>
                           {musicForm.audio_url.startsWith("http") && (
-                            <small>Enlace guardado: {musicForm.audio_url}</small>
+                            <a className="music-saved-url" href={musicForm.audio_url} target="_blank" rel="noreferrer">
+                              Abrir archivo guardado
+                            </a>
                           )}
+                        </div>
+                      )}
+                      {musicUploadProgress !== null && (
+                        <div className="music-upload-progress" aria-live="polite">
+                          <div>
+                            <span>Subiendo archivo</span>
+                            <span>{musicUploadProgress}%</span>
+                          </div>
+                          <Progress value={musicUploadProgress} aria-label="Progreso de carga del audio" />
                         </div>
                       )}
                     </div>
@@ -2017,8 +2244,7 @@ export function AdminPage() {
                         value={musicForm.youtube_id || musicForm.audio_url || ""}
                         onChange={(e) => {
                           const raw = e.target.value.trim();
-                          const match = raw.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
-                          const youtubeId = match ? match[1] : raw;
+                          const youtubeId = parseYouTubeId(raw);
                           setMusicForm({
                             ...musicForm,
                             youtube_id: youtubeId,
@@ -2029,35 +2255,56 @@ export function AdminPage() {
                       />
                     </label>
                   ) : (
-                    <label>
-                      URL del Audio (MP3 / WAV o streaming)
-                      <input
-                        type="url"
-                        value={musicForm.audio_url}
-                        onChange={(e) => setMusicForm({ ...musicForm, audio_url: e.target.value })}
-                        placeholder="https://..."
-                      />
-                    </label>
+                    <div className="music-direct-url-fields">
+                      <label>
+                        URL del Audio (MP3 / WAV o streaming)
+                        <input
+                          type="url"
+                          value={musicForm.audio_url}
+                          onChange={(e) => setMusicForm({ ...musicForm, audio_url: e.target.value })}
+                          placeholder="https://servidor.com/audio.mp3"
+                        />
+                      </label>
+                      {getDirectAudioPreviewUrl(musicForm.audio_url) ? (
+                        <div className="music-source-preview">
+                          <span>Vista previa · URL directa</span>
+                          <audio controls preload="metadata" src={getDirectAudioPreviewUrl(musicForm.audio_url)} />
+                        </div>
+                      ) : musicForm.audio_url ? (
+                        <p className="music-source-hint">Ingresa una URL pública http(s) del archivo de audio.</p>
+                      ) : null}
+                    </div>
                   )}
 
-                  <div className="form-grid">
-                    <label>
-                      Duración aproximada
-                      <input
-                        value={musicForm.duration}
-                        onChange={(e) => setMusicForm({ ...musicForm, duration: e.target.value })}
-                        placeholder="2:45"
-                      />
-                    </label>
-                    <label>
-                      Orden
-                      <input
-                        type="number"
-                        value={musicForm.sort_order}
-                        onChange={(e) => setMusicForm({ ...musicForm, sort_order: Number(e.target.value) })}
-                      />
-                    </label>
-                  </div>
+                  {musicForm.source_type === "youtube" && (
+                    <div className="music-source-preview">
+                      {parseYouTubeId(musicForm.youtube_id || musicForm.audio_url) ? (
+                        <>
+                          <span>Vista previa · YouTube</span>
+                          <div className="music-youtube-preview">
+                            <iframe
+                              src={`https://www.youtube-nocookie.com/embed/${parseYouTubeId(musicForm.youtube_id || musicForm.audio_url)}?playsinline=1`}
+                              title={`Vista previa de ${musicForm.title || "pista de YouTube"}`}
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                              referrerPolicy="strict-origin-when-cross-origin"
+                              allowFullScreen
+                            />
+                          </div>
+                        </>
+                      ) : (
+                        <p className="music-source-hint">Pega un enlace de YouTube válido para mostrar su preview.</p>
+                      )}
+                    </div>
+                  )}
+
+                  <label>
+                    Duración aproximada
+                    <input
+                      value={musicForm.duration}
+                      onChange={(e) => setMusicForm({ ...musicForm, duration: e.target.value })}
+                      placeholder="2:45"
+                    />
+                  </label>
 
                   <div className="checkboxes">
                     <label>
@@ -2101,8 +2348,14 @@ export function AdminPage() {
                 </div>
               </div>
 
-              <Button type="submit" size="lg">
-                <Save /> Guardar pista de música
+              {musicFeedback && (
+                <div className={musicFeedback.type === "success" ? "admin-feedback success" : "admin-feedback error"} role="status">
+                  {musicFeedback.message}
+                </div>
+              )}
+
+              <Button type="submit" size="lg" disabled={isSavingMusic}>
+                <Save /> {isSavingMusic ? (musicUploadProgress !== null ? "Subiendo archivo..." : "Guardando cambios...") : "Guardar pista de música"}
               </Button>
             </form>
           </aside>

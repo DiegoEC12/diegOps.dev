@@ -77,7 +77,6 @@ export type Database = {
       site_settings: {
         Row: {
           id: string
-          brand_initials: string
           brand_name: string
           hero_title: string
           hero_role: string
@@ -95,7 +94,6 @@ export type Database = {
         }
         Insert: {
           id?: string
-          brand_initials?: string
           brand_name?: string
           hero_title?: string
           hero_role?: string
@@ -113,7 +111,6 @@ export type Database = {
         }
         Update: {
           id?: string
-          brand_initials?: string
           brand_name?: string
           hero_title?: string
           hero_role?: string

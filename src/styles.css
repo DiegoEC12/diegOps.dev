@@ -418,7 +418,7 @@ a {
 .hero-content h1 {
   margin: 22px 0 12px;
   font-family: var(--font-display);
-  font-size: clamp(64px, 8.3vw, 142px);
+  font-size: clamp(64px, 10.3vw, 142px);
   line-height: 0.83;
   letter-spacing: 0;
   text-transform: uppercase;
@@ -1185,6 +1185,19 @@ a {
   color: inherit;
 }
 
+.admin-mobile-bar {
+  display: contents;
+}
+.admin-mobile-current-section,
+.admin-mobile-menu-toggle,
+.admin-sign-out-mobile {
+  display: none;
+}
+
+.admin-navigation-backdrop {
+  display: none;
+}
+
 .admin-content {
   padding: 55px clamp(24px, 5vw, 80px);
   overflow: hidden;
@@ -1519,14 +1532,33 @@ td small {
    ========================================================================== */
 .admin-settings-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1fr);
-  gap: 28px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.85fr);
+  gap: 22px;
   align-items: start;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1200px) {
   .admin-settings-layout {
     grid-template-columns: 1fr;
+  }
+
+  .admin-preview-column {
+    position: static;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1200px) {
+  .admin-preview-column {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .image-drag-framer-container.aspect-square {
+    max-height: 340px;
+  }
+  .admin-music-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .admin-music-preview-panel {
+    order: -1;
   }
 }
 
@@ -1540,7 +1572,8 @@ td small {
   background: var(--card);
   border: 2px solid var(--ink);
   box-shadow: 4px 4px 0 var(--ink);
-  padding: 24px;
+  min-width: 0;
+  padding: clamp(16px, 2vw, 24px);
   transition:
     transform 0.15s ease,
     box-shadow 0.15s ease;
@@ -1663,6 +1696,8 @@ textarea.admin-input-styled {
   top: 24px;
   display: grid;
   gap: 16px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .blueprint-preview-box {
@@ -1695,7 +1730,7 @@ textarea.admin-input-styled {
 }
 
 .blueprint-content {
-  padding: 24px;
+  padding: clamp(14px, 2vw, 24px);
   background:
     radial-gradient(circle at 10% 20%, rgba(200, 100, 40, 0.04) 0%, transparent 60%),
     repeating-linear-gradient(
@@ -1822,20 +1857,12 @@ textarea.admin-input-styled {
   border: 1px solid var(--border);
 }
 
-.preview-hanko-seal {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.preview-brand-logo {
+  display: block;
   width: 32px;
   height: 32px;
-  border: 2px solid #b91c1c;
-  color: #b91c1c;
-  font-family: var(--font-display);
-  font-size: 11px;
-  font-weight: 900;
-  line-height: 1;
-  transform: rotate(-4deg);
-  box-shadow: 1px 1px 0 rgba(185, 28, 28, 0.4);
+  flex: 0 0 auto;
+  object-fit: contain;
 }
 
 .preview-footer-line {
@@ -1867,7 +1894,7 @@ textarea.admin-input-styled {
 
 .admin-music-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(230px, 0.9fr);
+  grid-template-columns: minmax(0, 1.35fr) minmax(220px, 0.85fr);
   gap: 18px;
   align-items: start;
 }
@@ -1882,10 +1909,31 @@ textarea.admin-input-styled {
 
 .music-upload-panel {
   display: grid;
+  min-width: 0;
+  max-width: 100%;
   gap: 10px;
   padding: 14px;
   background: var(--paper);
   border: 1px dashed var(--border);
+  box-sizing: border-box;
+}
+
+@media (max-width: 980px) {
+  .music-drawer .admin-music-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .music-drawer .admin-music-preview-panel {
+    order: -1;
+  }
+}
+
+@media (min-width: 981px) and (max-width: 1200px) {
+  .music-drawer .admin-music-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .music-drawer .admin-music-preview-panel {
+    order: -1;
+  }
 }
 
 .music-upload-label {
@@ -1894,23 +1942,87 @@ textarea.admin-input-styled {
 }
 
 .music-upload-label input[type="file"] {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   padding: 10px;
   border: 1px solid var(--border);
   background: var(--card);
+  box-sizing: border-box;
 }
 
 .music-upload-preview {
   display: grid;
+  min-width: 0;
+  max-width: 100%;
   gap: 8px;
   padding-top: 6px;
+  overflow: hidden;
 }
 
 .music-upload-preview audio {
+  display: block;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.music-upload-preview small,
+.music-saved-url {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.music-saved-url {
+  color: var(--copper);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.music-direct-url-fields { display: grid; min-width: 0; gap: 12px; }
+.music-source-preview {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  padding: 12px;
+  border: 1px dashed var(--border);
+  background: var(--paper);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--copper);
+}
+.music-source-preview audio { display: block; width: 100%; min-width: 0; max-width: 100%; }
+.music-youtube-preview { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; background: var(--night); }
+.music-youtube-preview iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.music-source-hint { margin: 0; color: var(--muted-foreground); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+
+.music-upload-progress {
+  display: grid;
+  gap: 8px;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.music-upload-progress > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.music-upload-progress [data-state="loading"] {
+  background: var(--border);
+}
+
+.music-upload-progress [data-state="loading"] [data-state="loading"] {
+  background: var(--copper);
 }
 
 .admin-music-preview-box {
   display: grid;
+  min-width: 0;
+  max-width: 100%;
   gap: 12px;
   background: var(--paper);
   border: 1.5px solid var(--ink);
@@ -1929,7 +2041,38 @@ textarea.admin-input-styled {
   justify-content: center;
   padding: 12px 10px;
   background: var(--night);
-  border: 1.5px solid rgba(255,255,255,0.12);
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+}
+
+.admin-cassette-mini .cassette-lcd {
+  min-width: 0;
+  width: min(180px, 100%);
+}
+
+.music-drawer .admin-music-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.72fr);
+}
+
+.music-drawer .admin-music-layout > * {
+  min-width: 0;
+}
+
+.music-drawer .admin-cassette-mini .cassette-deck {
+  min-width: 0;
+}
+.music-drawer .admin-cassette-mini .cassette-center-screen {
+  min-width: 0;
+  flex: 1;
+}
+.music-drawer .admin-cassette-mini .cassette-lcd {
+  min-width: 0;
+  width: 100%;
+}
+
+.admin-music-layout > *,
+.admin-music-form-panel > *,
+.admin-music-preview-panel > * {
+  min-width: 0;
 }
 
 .admin-music-meta {
@@ -2625,15 +2768,16 @@ textarea.admin-input-styled {
 .studio-hanko-seal {
   width: 48px;
   height: 48px;
-  border: 2.5px solid #ef4444;
-  color: #ef4444;
   display: grid;
-  place-content: center;
-  font-family: var(--font-display);
-  font-size: 18px;
-  font-weight: 900;
-  transform: rotate(-3deg);
-  box-shadow: 2px 2px 0 rgba(239, 68, 68, 0.3);
+  flex: 0 0 auto;
+  place-items: center;
+}
+
+.footer-brand-logo {
+  display: block;
+  width: 50px;
+  height: 50px;
+  object-fit: contain;
 }
 
 .footer-author-name {
@@ -2740,7 +2884,8 @@ textarea.admin-input-styled {
 .lofi-cassette-widget {
   position: fixed;
   bottom: 20px;
-  left: 20px;
+  right: 12px;
+  left: auto;
   z-index: 50;
   background: var(--night);
   color: var(--primary-foreground);
@@ -2752,6 +2897,149 @@ textarea.admin-input-styled {
   gap: 14px;
   max-width: 440px;
 }
+
+.lofi-cassette-widget.is-collapsed {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.cassette-collapsed-badge {
+  position: relative;
+  display: flex;
+  width: 50px;
+  height: 50px;
+  padding: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 2px solid var(--ink);
+  background: var(--night);
+  box-shadow: 4px 4px 0 var(--copper);
+  color: var(--copper);
+  cursor: pointer;
+}
+
+.cassette-collapsed-badge:hover {
+  transform: translate(-2px, -2px);
+}
+.cassette-collapsed-controls {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.cassette-expand-trigger {
+  visibility: hidden;
+  display: none;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  padding: 0;
+  border: 2px solid var(--ink);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 2px 2px 0 var(--copper);
+  cursor: pointer;
+}
+.cassette-expand-trigger svg {
+  width: 14px;
+  height: 14px;
+  transform: rotate(-90deg);
+}
+.collapsed-icon {
+  width: 14px;
+  height: 14px;
+}
+.collapsed-sound-waves {
+  height: 14px;
+  display: flex;
+  align-items: end;
+  gap: 3px;
+}
+.wave-bar {
+  width: 3px;
+  height: 4px;
+  background: var(--copper);
+}
+.wave-bar.is-animated {
+  background: var(--terminal);
+  animation: wave-bounce 0.7s infinite alternate ease-in-out;
+}
+.wave-bar.is-animated:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.wave-bar.is-animated:nth-child(3) {
+  animation-delay: 0.3s;
+}
+.wave-bar.is-animated:nth-child(4) {
+  animation-delay: 0.45s;
+}
+@keyframes wave-bounce {
+  to {
+    height: 14px;
+  }
+}
+.collapsed-pulse-dot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--terminal);
+}
+.cassette-collapse-trigger {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  z-index: 2;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  padding: 0;
+  border: 2px solid var(--ink);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 2px 2px 0 var(--copper);
+  cursor: pointer;
+}
+.cassette-collapse-trigger svg {
+  width: 14px;
+  height: 14px;
+}
+.cassette-empty-message {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  white-space: nowrap;
+}
+.cassette-youtube-player { width: min(280px, 100%); aspect-ratio: 16 / 9; overflow: hidden; background: #000; }
+.cassette-youtube-player iframe { display: block; width: 100%; height: 100%; border: 0; }
+.cassette-youtube-player > div { width: 100%; height: 100%; }
+.cassette-youtube-player.is-hidden {
+  position: fixed;
+  top: 0;
+  left: -10000px;
+  width: 200px;
+  height: 200px;
+  opacity: 0;
+  pointer-events: none;
+}
+.cassette-controls button:disabled { opacity: 0.45; cursor: not-allowed; }
+.cassette-track-select {
+  width: 100%;
+  min-width: 0;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+}
+.cassette-track-select:disabled { cursor: default; }
+.cassette-track-select:hover .track-title-ticker { text-decoration: underline; }
 
 .cassette-deck {
   display: flex;
@@ -2922,23 +3210,140 @@ textarea.admin-input-styled {
   }
 
   .admin-page {
-    display: block;
-  }
-
-  .admin-sidebar {
-    position: relative;
-    height: auto;
-    flex-direction: row;
-    align-items: center;
-  }
-
-  .admin-sidebar nav {
     display: flex;
-    margin: 0 0 0 auto;
+    flex-direction: column;
   }
-
-  .admin-sidebar > button {
+  .admin-sidebar {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    width: 100%;
+    height: auto;
+    padding: 12px 16px;
+    border-bottom: 2px solid var(--ink);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  }
+  .admin-mobile-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+  .admin-sidebar .wordmark {
+    display: flex;
+    align-items: center;
+    min-width: 0;
     margin: 0;
+  }
+  .admin-sidebar .wordmark span {
+    white-space: nowrap;
+  }
+  .admin-mobile-current-section {
+    display: block;
+    overflow: hidden;
+    margin-left: auto;
+    color: var(--copper);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .admin-mobile-menu-toggle {
+    display: inline-flex;
+    flex: 0 0 auto;
+    width: 42px;
+    height: 42px;
+    padding: 8px;
+    color: var(--primary-foreground);
+  }
+  .admin-mobile-menu-toggle svg {
+    width: 22px;
+    height: 22px;
+  }
+  .admin-navigation-backdrop {
+    position: fixed;
+    z-index: 38;
+    inset: 0;
+    display: block;
+    background: color-mix(in oklab, var(--night) 48%, transparent);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .admin-navigation-backdrop.is-open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .admin-sidebar nav {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 41;
+    display: grid;
+    width: 100%;
+    max-height: min(70vh, 560px);
+    gap: 4px;
+    margin: 2px 0 0;
+    padding: 0 16px;
+    overflow-y: auto;
+    background: var(--night);
+    border-bottom: 2px solid var(--ink);
+    box-shadow: 0 8px 18px color-mix(in oklab, var(--night) 28%, transparent);
+    visibility: hidden;
+    opacity: 0;
+    max-height: 0;
+    pointer-events: none;
+    transition:
+      opacity 0.18s ease,
+      max-height 0.22s ease,
+      visibility 0.22s;
+  }
+  .admin-sidebar nav.is-open {
+    visibility: visible;
+    opacity: 1;
+    max-height: min(70vh, 560px);
+    padding-top: 10px;
+    padding-bottom: 14px;
+    pointer-events: auto;
+  }
+  .admin-sidebar nav a,
+  .admin-tab-button {
+    flex: none;
+    width: 100%;
+    min-height: 44px;
+    white-space: normal;
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+  .admin-sidebar nav a:first-child {
+    display: flex;
+  }
+  .admin-sidebar nav .admin-sign-out {
+    justify-content: flex-start;
+    min-height: 44px;
+    margin: 8px 0 0;
+    padding: 10px 12px;
+    border-top: 1px solid color-mix(in oklab, var(--primary-foreground) 20%, transparent);
+    color: var(--primary-foreground);
+    font-size: 14px;
+  }
+  .admin-sidebar nav .admin-sign-out svg {
+    width: 17px;
+  }
+  .admin-sidebar > .admin-sign-out {
+    display: none;
+  }
+  .admin-sidebar nav .admin-sign-out-mobile {
+    display: flex;
+  }
+  .admin-content {
+    min-width: 0;
+    width: 100%;
+    padding: 32px 20px 80px;
+    transition: filter 0.2s ease;
+  }
+  .admin-content.is-nav-open {
+    pointer-events: none;
   }
 }
 
@@ -2965,7 +3370,7 @@ textarea.admin-input-styled {
   }
 
   .hero-content h1 {
-    font-size: clamp(54px, 18vw, 80px);
+    font-size: clamp(46px, 14vw, 80px);
   }
 
   .hero-copy {
@@ -3023,40 +3428,255 @@ textarea.admin-input-styled {
     flex-direction: column;
   }
 
-  .lofi-player {
-    left: 16px;
-    right: 16px;
-    bottom: 14px;
-    width: auto;
+  .admin-sidebar .wordmark img {
+    width: 30px;
+    height: 30px;
   }
-
-  .admin-sidebar nav a:first-child {
-    display: none;
-  }
-
-  .admin-sidebar .wordmark {
-    font-size: 0;
-  }
-
   .admin-sidebar .wordmark span {
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .admin-content {
-    padding: 38px 18px 100px;
+    padding: 28px 14px 96px;
   }
+
+  .admin-settings-layout {
+    gap: 16px;
+  }
+  .admin-cards-column {
+    gap: 14px;
+  }
+  .admin-card {
+    padding: 16px 14px;
+    box-shadow: 3px 3px 0 var(--ink);
+  }
+  .admin-card-badge {
+    max-width: 100%;
+    font-size: 9px;
+    white-space: normal;
+  }
+  .admin-card-title {
+    font-size: 18px;
+    line-height: 1.2;
+  }
+  .admin-card-desc {
+    font-size: 12px;
+  }
+  .blueprint-preview-box {
+    box-shadow: 3px 3px 0 var(--copper);
+  }
+  .blueprint-preview-bar {
+    padding: 8px 10px;
+    font-size: 9px;
+  }
+  .blueprint-content {
+    padding: 14px;
+  }
+  .preview-site-header {
+    gap: 8px;
+  }
+  .preview-logo-img {
+    width: 30px;
+    height: 30px;
+    flex: 0 0 auto;
+  }
+  .preview-brand-tag {
+    font-size: 12px;
+    overflow-wrap: anywhere;
+  }
+  .preview-hero-title {
+    font-size: clamp(20px, 7vw, 26px);
+    overflow-wrap: anywhere;
+  }
+  .preview-hero-copy {
+    font-size: 11.5px;
+  }
+  .preview-badge {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+  .image-drag-framer-wrapper {
+    padding: 9px;
+  }
+  .framer-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .framer-coords {
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 10px;
+  }
+  .framer-controls {
+    flex-wrap: wrap;
+  }
+  .framer-controls button {
+    /*flex: 1 1 145px;*/
+    white-space: normal;
+  }
+  .admin-save-sticky-bar {
+    position: sticky;
+    bottom: 8px;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    margin-top: 18px;
+    box-shadow: 3px 3px 0 var(--copper);
+  }
+  .save-bar-status {
+    font-size: 10px;
+    line-height: 1.4;
+  }
+  .admin-save-sticky-bar > button {
+    width: 100%;
+    white-space: normal;
+  }
+
+  .admin-music-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .admin-music-form-panel,
+  .admin-music-preview-panel {
+    min-width: 0;
+    padding: 12px;
+    box-shadow: 3px 3px 0 var(--ink);
+  }
+  .admin-music-preview-panel {
+    order: -1;
+  }
+  .admin-music-preview-box {
+    padding: 10px;
+  }
+  .admin-cassette-mini {
+    gap: 6px;
+    padding: 10px 6px;
+  }
+  .admin-cassette-mini .cassette-spool {
+    width: 22px;
+    height: 22px;
+  }
+  .admin-cassette-mini .cassette-spool svg {
+    width: 17px;
+    height: 17px;
+  }
+  .admin-cassette-mini .cassette-lcd {
+    max-width: none;
+    padding: 3px 5px;
+  }
+  .music-upload-panel,
+  .music-upload-preview,
+  .admin-music-preview-box,
+  .admin-music-form-panel {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .music-upload-label input[type="file"] {
+    font-size: 12px;
+    padding: 8px 6px;
+  }
+  .music-upload-preview small {
+    font-size: 10px;
+  }
+  .admin-music-preview-box {
+    overflow: hidden;
+  }
+  .admin-music-meta {
+    flex-wrap: wrap;
+    font-size: 9px;
+  }
+
+  .project-drawer {
+    padding: 22px 15px 28px;
+  }
+  .project-drawer h2 {
+    max-width: calc(100vw - 88px);
+    font-size: 26px;
+    overflow-wrap: anywhere;
+  }
+  .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+  .project-drawer form > button[type="submit"] {
+    width: 100%;
+    white-space: normal;
+  }
+  .checkboxes {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .checkboxes label {
+    padding-bottom: 4px;
+  }
+  .music-drawer .admin-music-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .image-drag-framer-container {
+    max-height: 48vh;
+  }
+  .image-drag-framer-container.aspect-square {
+    aspect-ratio: 1 / 1;
+    max-height: min(58vw, 280px);
+  }
+  .image-drag-framer-container.aspect-video {
+    aspect-ratio: 16 / 9;
+    max-height: none;
+  }
+  .image-drag-framer-container[class~="aspect-[4/3]"] {
+    aspect-ratio: 4 / 3;
+    max-height: none;
+  }
+
+  .lofi-cassette-widget.is-expanded {
+    left: auto;
+    right: 12px;
+    bottom: 14px;
+    width: min(440px, calc(100vw - 24px));
+    max-width: none;
+  }
+
+  .lofi-cassette-widget.is-collapsed {
+    right: 14px;
+    bottom: 14px;
+  }
+  .lofi-cassette-widget.is-expanded .cassette-deck {
+    min-width: 0;
+    flex: 1;
+    gap: 6px;
+  }
+  .lofi-cassette-widget.is-expanded .cassette-center-screen {
+    min-width: 0;
+    flex: 1;
+  }
+  .lofi-cassette-widget.is-expanded .cassette-lcd {
+    min-width: 0;
+    max-width: none;
+  }
+  .lofi-cassette-widget.is-expanded .cassette-spool.left {
+    display: none;
+  }
+  .lofi-cassette-widget.is-expanded .cassette-controls {
+    flex: 0 0 auto;
+    gap: 0;
+  }
+  .lofi-cassette-widget.is-expanded .cassette-controls button {
+    width: 34px;
+    height: 34px;
+    padding: 4px;
+  }
+  .lofi-cassette-widget.is-expanded:has(.cassette-youtube-player) {
+    flex-wrap: wrap;
+    width: min(440px, calc(100vw - 24px));
+  }
+  .cassette-youtube-player { width: 100%; }
 
   .admin-content > header {
     align-items: start;
     flex-direction: column;
-  }
-
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .project-drawer {
-    padding: 22px;
   }
 
   th:nth-child(2),

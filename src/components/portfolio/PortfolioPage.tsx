@@ -31,7 +31,6 @@ type SiteSettings = Db["public"]["Tables"]["site_settings"]["Row"];
 
 const defaultSiteSettings: SiteSettings = {
   id: "general_config",
-  brand_initials: "DY",
   brand_name: "Diego Yeferson EC",
   hero_title: "Diego Yeferson EC",
   hero_role: "Técnico en desarrollo de sistemas e información",
@@ -323,7 +322,7 @@ export function PortfolioPage() {
       {/* Footer de Estudio Manga Ampliado */}
       <StudioFooter
         brandName={siteSettings.brand_name}
-        brandInitials={siteSettings.brand_initials || "DY"}
+        logoUrl={siteSettings.logo_url || "/favicon.png"}
         footerTagline={siteSettings.footer_tagline}
         location={siteSettings.location}
       />

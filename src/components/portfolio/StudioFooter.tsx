@@ -2,26 +2,24 @@ import { ArrowUpRight, Code, Heart, Sparkles, Terminal } from "lucide-react";
 
 interface StudioFooterProps {
   brandName?: string;
-  brandInitials?: string;
+  logoUrl?: string | null;
   footerTagline?: string | null;
   location?: string | null;
 }
 
 export function StudioFooter({
   brandName = "Diego Yeferson EC",
-  brandInitials = "DY",
+  logoUrl = "/favicon.png",
   footerTagline = "Diseñado entre café, código y lluvia.",
   location = "Lima, Perú",
 }: StudioFooterProps) {
   return (
     <footer className="studio-footer-container">
       <div className="studio-footer-inner">
-        {/* Zona 1: Autor, Manifiesto & Sello Hankō */}
+        {/* Zona 1: Autor y manifiesto */}
         <div className="footer-zone-author">
           <div className="footer-brand-lockup">
-            <div className="studio-hanko-seal" title="Sello tradicional Hankō">
-              <span>{brandInitials}</span>
-            </div>
+            <img className="footer-brand-logo" src={logoUrl || "/favicon.png"} alt="Logotipo Diego Yeferson" />
             <div>
               <h3 className="footer-author-name">{brandName}</h3>
               <p className="footer-author-role">Técnico en Sistemas & Estudiante Ing. de Software UTP</p>
