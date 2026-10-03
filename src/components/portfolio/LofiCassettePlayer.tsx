@@ -39,6 +39,15 @@ const defaultTracks: Track[] = [
   },
 ];
 
+const normalizeTrackUrl = (value?: string | null) => {
+  if (!value) return value;
+  return value
+    .replace(/\.mp3\.mp3$/i, ".mp3")
+    .replace(/\.wav\.wav$/i, ".wav")
+    .replace(/\.aac\.aac$/i, ".aac")
+    .replace(/\.ogg\.ogg$/i, ".ogg");
+};
+
 export function LofiCassettePlayer() {
   const [tracks, setTracks] = useState<Track[]>(defaultTracks);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -60,8 +69,15 @@ export function LofiCassettePlayer() {
           .eq("is_active", true)
           .order("sort_order");
 
-        if (!error && data && data.length > 0) {
-          setTracks(data as Track[]);
+        if (!error && data) {
+          const validTracks = (data as Track[])
+            .map((track) => ({
+              ...track,
+              audio_url: normalizeTrackUrl(track.audio_url),
+            }))
+            .filter((track) => track.audio_url && !track.audio_url.startsWith("blob:") && track.audio_url.trim() !== "");
+
+          setTracks(validTracks.length > 0 ? validTracks : []);
         }
       } catch {
         // Fallback to default

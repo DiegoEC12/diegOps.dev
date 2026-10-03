@@ -223,8 +223,11 @@ export type Database = {
           id: string
           title: string
           artist: string
-          audio_url: string
-          duration: string | null
+          source_type?: "upload" | "direct_url" | "youtube" | null
+          audio_url?: string | null
+          youtube_id?: string | null
+          duration?: string | null
+          duration_seconds?: number | null
           is_active: boolean
           sort_order: number
           created_at: string
@@ -233,8 +236,11 @@ export type Database = {
           id?: string
           title: string
           artist?: string
-          audio_url: string
+          source_type?: "upload" | "direct_url" | "youtube" | null
+          audio_url?: string | null
+          youtube_id?: string | null
           duration?: string | null
+          duration_seconds?: number | null
           is_active?: boolean
           sort_order?: number
           created_at?: string
@@ -243,8 +249,11 @@ export type Database = {
           id?: string
           title?: string
           artist?: string
-          audio_url?: string
+          source_type?: "upload" | "direct_url" | "youtube" | null
+          audio_url?: string | null
+          youtube_id?: string | null
           duration?: string | null
+          duration_seconds?: number | null
           is_active?: boolean
           sort_order?: number
           created_at?: string

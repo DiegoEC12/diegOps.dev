@@ -7,6 +7,7 @@ import {
   Briefcase,
   Check,
   CheckCircle2,
+  Disc3,
   ExternalLink,
   Eye,
   EyeOff,
@@ -110,8 +111,11 @@ const emptyCertForm = {
 const emptyMusicForm = {
   title: "",
   artist: "Diego Yeferson Lo-Fi",
+  source_type: "direct_url" as "upload" | "direct_url" | "youtube",
   audio_url: "",
+  youtube_id: "",
   duration: "2:45",
+  duration_seconds: 165,
   is_active: true,
   sort_order: 0,
 };
@@ -156,6 +160,9 @@ export function AdminPage() {
 
   const [musicDrawerOpen, setMusicDrawerOpen] = useState(false);
   const [musicForm, setMusicForm] = useState(emptyMusicForm);
+  const [musicUploadFile, setMusicUploadFile] = useState<File | null>(null);
+  const [musicFileLabel, setMusicFileLabel] = useState("No hay archivo");
+  const [musicFeedback, setMusicFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [editingMusicId, setEditingMusicId] = useState<string | null>(null);
 
   const [faqDrawerOpen, setFaqDrawerOpen] = useState(false);
@@ -446,45 +453,146 @@ export function AdminPage() {
   };
 
   // Music CRUD
+  const isBlobUrl = (value?: string | null) => !!value && value.startsWith("blob:");
+
+  const normalizeStoredAudioUrl = (value?: string | null) => {
+    if (!value) return value;
+    return value
+      .replace(/\.mp3\.mp3$/i, ".mp3")
+      .replace(/\.wav\.wav$/i, ".wav")
+      .replace(/\.aac\.aac$/i, ".aac")
+      .replace(/\.ogg\.ogg$/i, ".ogg");
+  };
+
+  const handleMusicFileSelection = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const objectUrl = URL.createObjectURL(file);
+    setMusicUploadFile(file);
+    setMusicFileLabel(file.name);
+    setMusicFeedback({ type: "success", message: `Archivo listo para subir: ${file.name}` });
+    setMusicForm((current) => ({
+      ...current,
+      source_type: "upload",
+      audio_url: objectUrl,
+      title: current.title || file.name.replace(/\.[^/.]+$/, ""),
+      duration: current.duration || "2:45",
+    }));
+  };
+
+  const uploadMusicFileToStorage = async () => {
+    if (musicForm.source_type !== "upload" || !musicUploadFile) {
+      return isBlobUrl(musicForm.audio_url) ? null : normalizeStoredAudioUrl(musicForm.audio_url) || null;
+    }
+
+    const { data: bucketData, error: bucketError } = await supabase.storage.getBucket("music");
+    if (bucketError || !bucketData) {
+      throw new Error("El bucket 'music' no existe en este proyecto de Supabase. Créalo en Storage con acceso público.");
+    }
+
+    const originalName = musicUploadFile.name.toLowerCase();
+    const extension = originalName.includes(".") ? originalName.slice(originalName.lastIndexOf(".")) : ".mp3";
+    const baseName = originalName.replace(/\.[^.]+$/, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
+    const randomSuffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const safeFileName = `${baseName || "audio"}-${randomSuffix}`.replace(/-+/g, "-");
+    const storagePath = `${safeFileName}${extension}`;
+
+    const { error } = await supabase.storage.from("music").upload(storagePath, musicUploadFile, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: musicUploadFile.type || "audio/mpeg",
+    });
+
+    if (error) {
+      throw new Error(`No se pudo subir el archivo a Supabase Storage: ${error.message}`);
+    }
+
+    const { data } = supabase.storage.from("music").getPublicUrl(storagePath);
+    return normalizeStoredAudioUrl(data.publicUrl) || data.publicUrl;
+  };
+
   const startEditMusic = (item?: MusicTrack) => {
+    setMusicFeedback(null);
     if (item) {
       setEditingMusicId(item.id);
+      setMusicUploadFile(null);
       setMusicForm({
         title: item.title,
         artist: item.artist,
-        audio_url: item.audio_url,
+        source_type: (item.source_type as "upload" | "direct_url" | "youtube") || "direct_url",
+        audio_url: normalizeStoredAudioUrl(item.audio_url) || "",
+        youtube_id: item.youtube_id || "",
         duration: item.duration || "2:45",
+        duration_seconds: item.duration_seconds || 165,
         is_active: item.is_active,
         sort_order: item.sort_order,
       });
+      setMusicFileLabel(item.audio_url ? "Archivo adjunto" : "No hay archivo");
     } else {
       setEditingMusicId(null);
+      setMusicUploadFile(null);
       setMusicForm(emptyMusicForm);
+      setMusicFileLabel("No hay archivo");
     }
     setMusicDrawerOpen(true);
   };
 
   const saveMusic = async (e: React.FormEvent) => {
     e.preventDefault();
-    const payload = {
-      title: musicForm.title,
-      artist: musicForm.artist,
-      audio_url: musicForm.audio_url,
-      duration: musicForm.duration || null,
-      is_active: musicForm.is_active,
-      sort_order: Number(musicForm.sort_order),
-    };
 
-    const res = editingMusicId
-      ? await supabase.from("music_tracks").update(payload).eq("id", editingMusicId)
-      : await supabase.from("music_tracks").insert(payload);
+    const safeStoredAudioUrl = isBlobUrl(musicForm.audio_url) ? "" : musicForm.audio_url || "";
+    const validExistingAudio = safeStoredAudioUrl || (editingMusicId ? (await supabase.from("music_tracks").select("audio_url").eq("id", editingMusicId).maybeSingle()).data?.audio_url || "" : "");
 
-    if (res.error) {
-      alert(`Error: ${res.error.message}`);
+    if (musicForm.source_type === "upload" && !musicUploadFile && !validExistingAudio) {
+      setMusicFeedback({ type: "error", message: "Selecciona un archivo MP3/WAV antes de guardar la pista." });
       return;
     }
-    setMusicDrawerOpen(false);
-    await loadMusic();
+
+    try {
+      let resolvedAudioUrl = isBlobUrl(musicForm.audio_url) ? null : normalizeStoredAudioUrl(musicForm.audio_url) || null;
+
+      if (musicForm.source_type === "upload" && musicUploadFile) {
+        resolvedAudioUrl = await uploadMusicFileToStorage();
+      } else if (musicForm.source_type === "upload" && !musicUploadFile && editingMusicId && validExistingAudio) {
+        resolvedAudioUrl = normalizeStoredAudioUrl(validExistingAudio) || validExistingAudio;
+      }
+
+      if (musicForm.source_type === "upload" && !resolvedAudioUrl) {
+        setMusicFeedback({ type: "error", message: "No hay ninguna URL válida para esta pista de audio. Sube un archivo MP3/WAV o usa una URL pública." });
+        return;
+      }
+
+      const payload = {
+        title: musicForm.title,
+        artist: musicForm.artist,
+        source_type: musicForm.source_type,
+        audio_url: musicForm.source_type === "upload" ? resolvedAudioUrl : safeStoredAudioUrl || null,
+        youtube_id: musicForm.source_type === "youtube" ? (musicForm.youtube_id || safeStoredAudioUrl || null) : (musicForm.youtube_id || null),
+        duration: musicForm.duration || "2:45",
+        duration_seconds: Number(musicForm.duration_seconds) || null,
+        is_active: musicForm.is_active,
+        sort_order: Number(musicForm.sort_order),
+      };
+
+      const res = editingMusicId
+        ? await supabase.from("music_tracks").update(payload).eq("id", editingMusicId)
+        : await supabase.from("music_tracks").insert(payload);
+
+      if (res.error) {
+        setMusicFeedback({ type: "error", message: `Error: ${res.error.message}` });
+        return;
+      }
+
+      setMusicDrawerOpen(false);
+      setMusicUploadFile(null);
+      setMusicFileLabel("No hay archivo");
+      setMusicFeedback({ type: "success", message: "Pista guardada correctamente en Supabase." });
+      await loadMusic();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error desconocido";
+      setMusicFeedback({ type: "error", message: `${message}. Crea el bucket 'music' en Supabase Storage y asegúrate de que sea público.` });
+    }
   };
 
   const removeMusic = async (id: string) => {
@@ -526,7 +634,7 @@ export function AdminPage() {
       <aside className="admin-sidebar">
         <div className="wordmark">
           <img src="/favicon.png" alt="Logo Diego Yeferson" className="wordmark-logo" width={34} height={34} />
-          <span>ADMIN // BLUEPRINT</span>
+          <span>Panel Administrador</span>
         </div>
 
         <nav>
@@ -1238,6 +1346,12 @@ export function AdminPage() {
               </Button>
             </header>
 
+            {musicFeedback && (
+              <div className={musicFeedback.type === "success" ? "admin-feedback success" : "admin-feedback error"}>
+                {musicFeedback.message}
+              </div>
+            )}
+
             <div className="admin-table-wrap">
               <table>
                 <thead>
@@ -1823,7 +1937,7 @@ export function AdminPage() {
           ==================================================================== */}
       {musicDrawerOpen && (
         <div className="drawer-backdrop" onMouseDown={() => setMusicDrawerOpen(false)}>
-          <aside className="project-drawer" onMouseDown={(e) => e.stopPropagation()}>
+          <aside className="project-drawer music-drawer" onMouseDown={(e) => e.stopPropagation()}>
             <header>
               <div>
                 <p className="kicker">{editingMusicId ? "Editar pista" : "Nueva pista"}</p>
@@ -1835,63 +1949,156 @@ export function AdminPage() {
             </header>
 
             <form onSubmit={saveMusic}>
-              <label>
-                Título del archivo / pista
-                <input
-                  value={musicForm.title}
-                  onChange={(e) => setMusicForm({ ...musicForm, title: e.target.value })}
-                  placeholder="noche_de_codigo.wav"
-                  required
-                />
-              </label>
+              <div className="admin-music-layout">
+                <div className="admin-music-form-panel">
+                  <label>
+                    Título del archivo / pista
+                    <input
+                      value={musicForm.title}
+                      onChange={(e) => setMusicForm({ ...musicForm, title: e.target.value })}
+                      placeholder="noche_de_codigo.wav"
+                      required
+                    />
+                  </label>
 
-              <label>
-                Artista / Sello
-                <input
-                  value={musicForm.artist}
-                  onChange={(e) => setMusicForm({ ...musicForm, artist: e.target.value })}
-                  required
-                />
-              </label>
+                  <label>
+                    Artista / Sello
+                    <input
+                      value={musicForm.artist}
+                      onChange={(e) => setMusicForm({ ...musicForm, artist: e.target.value })}
+                      required
+                    />
+                  </label>
 
-              <label>
-                URL del Audio (MP3 / WAV o streaming)
-                <input
-                  type="url"
-                  value={musicForm.audio_url}
-                  onChange={(e) => setMusicForm({ ...musicForm, audio_url: e.target.value })}
-                  placeholder="https://... o deja vacío para usar sintetizador ambiental"
-                />
-              </label>
+                  <label>
+                    Tipo de origen
+                    <select
+                      value={musicForm.source_type}
+                      onChange={(e) => {
+                        const nextType = e.target.value as "upload" | "direct_url" | "youtube";
+                        const cleanedAudioUrl = isBlobUrl(musicForm.audio_url) ? "" : musicForm.audio_url;
 
-              <div className="form-grid">
-                <label>
-                  Duración aproximada
-                  <input
-                    value={musicForm.duration}
-                    onChange={(e) => setMusicForm({ ...musicForm, duration: e.target.value })}
-                    placeholder="2:45"
-                  />
-                </label>
-                <label>
-                  Orden
-                  <input
-                    type="number"
-                    value={musicForm.sort_order}
-                    onChange={(e) => setMusicForm({ ...musicForm, sort_order: Number(e.target.value) })}
-                  />
-                </label>
-              </div>
+                        setMusicForm({
+                          ...musicForm,
+                          source_type: nextType,
+                          audio_url: nextType === "upload" ? cleanedAudioUrl : "",
+                          youtube_id: nextType === "youtube" ? musicForm.youtube_id : "",
+                        });
+                      }}
+                      className="admin-input-styled"
+                    >
+                      <option value="upload">Archivo MP3 / Upload</option>
+                      <option value="direct_url">URL directa</option>
+                      <option value="youtube">YouTube</option>
+                    </select>
+                  </label>
 
-              <div className="checkboxes">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={musicForm.is_active}
-                    onChange={(e) => setMusicForm({ ...musicForm, is_active: e.target.checked })}
-                  />
-                  Activa en el reproductor cassette
-                </label>
+                  {musicForm.source_type === "upload" ? (
+                    <div className="music-upload-panel">
+                      <label className="music-upload-label">
+                        Archivo de audio
+                        <input type="file" accept="audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/aac" onChange={handleMusicFileSelection} />
+                      </label>
+
+                      {musicForm.audio_url && (
+                        <div className="music-upload-preview">
+                          <audio controls src={musicForm.audio_url} preload="metadata" />
+                          <small>{musicFileLabel}</small>
+                          {musicForm.audio_url.startsWith("http") && (
+                            <small>Enlace guardado: {musicForm.audio_url}</small>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : musicForm.source_type === "youtube" ? (
+                    <label>
+                      URL o ID de YouTube
+                      <input
+                        value={musicForm.youtube_id || musicForm.audio_url || ""}
+                        onChange={(e) => {
+                          const raw = e.target.value.trim();
+                          const match = raw.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+                          const youtubeId = match ? match[1] : raw;
+                          setMusicForm({
+                            ...musicForm,
+                            youtube_id: youtubeId,
+                            audio_url: raw,
+                          });
+                        }}
+                        placeholder="https://youtu.be/... o watch?v=..."
+                      />
+                    </label>
+                  ) : (
+                    <label>
+                      URL del Audio (MP3 / WAV o streaming)
+                      <input
+                        type="url"
+                        value={musicForm.audio_url}
+                        onChange={(e) => setMusicForm({ ...musicForm, audio_url: e.target.value })}
+                        placeholder="https://..."
+                      />
+                    </label>
+                  )}
+
+                  <div className="form-grid">
+                    <label>
+                      Duración aproximada
+                      <input
+                        value={musicForm.duration}
+                        onChange={(e) => setMusicForm({ ...musicForm, duration: e.target.value })}
+                        placeholder="2:45"
+                      />
+                    </label>
+                    <label>
+                      Orden
+                      <input
+                        type="number"
+                        value={musicForm.sort_order}
+                        onChange={(e) => setMusicForm({ ...musicForm, sort_order: Number(e.target.value) })}
+                      />
+                    </label>
+                  </div>
+
+                  <div className="checkboxes">
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={musicForm.is_active}
+                        onChange={(e) => setMusicForm({ ...musicForm, is_active: e.target.checked })}
+                      />
+                      Activa en el reproductor cassette
+                    </label>
+                  </div>
+                </div>
+
+                <div className="admin-music-preview-panel">
+                  <div className="admin-music-preview-box">
+                    <div className="admin-music-preview-header">Live Cassette Preview</div>
+                    <div className="cassette-deck admin-cassette-mini">
+                      <div className={`cassette-spool left ${musicForm.is_active ? "is-spinning" : ""}`}>
+                        <Disc3 className="w-5 h-5 text-copper" />
+                      </div>
+                      <div className="cassette-center-screen">
+                        <div className="cassette-lcd">
+                          <span className="track-title-ticker">{musicForm.title || "Nueva pista"}</span>
+                          <span className="track-artist-sub">{musicForm.artist || "Lo-Fi Records"}</span>
+                        </div>
+                        <div className="cassette-eq-bars" aria-hidden="true">
+                          {Array.from({ length: 9 }).map((_, i) => (
+                            <span key={i} className={`eq-bar ${musicForm.is_active ? "is-animated" : ""}`} style={{ animationDelay: `${i * 120}ms` }} />
+                          ))}
+                        </div>
+                      </div>
+                      <div className={`cassette-spool right ${musicForm.is_active ? "is-spinning" : ""}`}>
+                        <Disc3 className="w-5 h-5 text-copper" />
+                      </div>
+                    </div>
+                    <div className="admin-music-meta">
+                      <span>Origen: {musicForm.source_type}</span>
+                      <span>Duración: {musicForm.duration || "2:45"}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <Button type="submit" size="lg">
